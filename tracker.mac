@@ -1,0 +1,130 @@
+;* ======================================================================== *;
+;*  This code is placed into the public domain by its author.               *;
+;*  All copyright rights are hereby relinquished on the code and data in    *;
+;*  this file.  -- Arnauld Chevallier, 2008                                 *;
+;* ======================================================================== *;
+
+;; ======================================================================== ;;
+;;  DRUM        Drum definition                                             ;;
+;; ======================================================================== ;;
+MACRO DRUM(t_per, n_per, tone, noise, vol)
+      DECLE %t_per%, %n_per%, $39 - %tone% - 8 * %noise%, %vol%
+ENDM
+
+;; ======================================================================== ;;
+;;  NOTES       Defines 4 notes at once                                     ;;
+;; ======================================================================== ;;
+MACRO NOTES(n0, n1, n2, n3)
+      ;
+      LISTING "code"
+      NOTE(%n0%)
+      NOTE(%n1%)
+      NOTE(%n2%)
+      NOTE(%n3%)
+      LISTING "prev"
+ENDM
+
+;; ======================================================================== ;;
+;;  NOTE        Defines one note                                            ;;
+;; ======================================================================== ;;
+;;  Format:                                                                 ;;
+;;    "NnO IVL"                                                             ;;
+;;  where:                                                                  ;;
+;;    N = Note (C, D, E, F, G, A, B)                                        ;;
+;;    n = '-' or '#'                                                        ;;
+;;    O = Octave (1 to 7)                                                   ;;
+;;    I = new Instrument (1 to F, or 0 for unchanged)                       ;;
+;;    V = Volume (0 to F)                                                   ;;
+;;    L = Length (0 to F)                                                   ;;
+;;                                                                          ;;
+;;  The following strings can be used instead of the NnO parameters:        ;;
+;;    "DRM" --> invokes a drum                                              ;;
+;;    "NUL" --> no note                                                     ;;
+;;                                                                          ;;
+;;  Examples:                                                               ;;
+;;    "C-3 1F1", "D#4 0F1", "DRM 1F1", "NUL 0F1"                            ;;
+;; ======================================================================== ;;
+MACRO NOTE(n)
+      ;
+      IF STRLEN(%n%) > 0
+        ; instrument
+_Hex2Dec(_i, ASC(%n%, 4))
+        ; volume
+_Hex2Dec(_v, ASC(%n%, 5))
+        ; length
+_Hex2Dec(_l, ASC(%n%, 6))
+        ; "DRM" ?
+        IF ASC(%n%, 0) = 68 AND ASC(%n%, 1) = 82 AND ASC(%n%, 2) = 77
+      DECLE (84+_i) * $100 + _l * $10 + (15-_v)
+        ELSE
+          ; "NUL" ?
+          IF ASC(%n%, 0) = 78 AND ASC(%n%, 1) = 85 AND ASC(%n%, 2) = 76
+            IF _i <> 0
+      DECLE  $8000 + _l * $10 + (15-_v)
+      DECLE (_i - 1) * 3
+            ELSE
+      DECLE  _l * $10 + (15-_v)
+            ENDI
+          ELSE
+            _InsertNote(%n%, _i, _v, _l)
+          ENDI
+        ENDI
+      ENDI
+ENDM
+
+;; ======================================================================== ;;
+;;  _InsertNote Inserts one note                                            ;;
+;; ======================================================================== ;;
+;;  This was put outside the "Note" macro for readability.                  ;;
+;; ======================================================================== ;;
+MACRO _InsertNote(n, i, v, l)
+      ; note
+_n0   SET   ASC(%n%, 0)
+      IF (_n0 < 65) OR (_n0 > 71)
+        ERR "Invalid note"
+      ENDI
+      ; conversion letter -> value
+      ;          ABCDEFG
+_n1   SET   ASC("JLACEFH", _n0-65) - 64
+      ; sharp ?
+      IF ASC(%n%, 1) = 35
+_n1   SET   _n1 + 1
+      ELSE
+        ; minus ?
+        IF ASC(%n%, 1) <> 45
+          ERR "Invalid note"
+        ENDI
+      ENDI
+      ; octave
+_o    SET   ASC(%n%, 2)
+      IF (_o < 49) OR (_o > 55)
+        ERR "Invalid octave"
+      ENDI
+      ; value
+      IF %i% <> 0
+      DECLE $8000 + (_n1 + 12 * (_o - 49)) * $100 + %l% * $10 + (15-%v%)
+      DECLE (%i% - 1) * 3
+      ELSE
+      DECLE (_n1 + 12 * (_o - 49)) * $100 + %l% * $10 + (15-%v%)
+      ENDI
+ENDM
+
+;; ======================================================================== ;;
+;;  _Hex2Dec    Hexa to decimal conversion                                  ;;
+;; ======================================================================== ;;
+MACRO _Hex2Dec(var, dec)
+      ;
+      IF (%dec% >= 48) AND (%dec% <= 57)
+%var% SET   %dec% - 48
+      ELSE
+        IF (%dec% >= 65) AND (%dec% <= 70)
+%var% SET   %dec% - 55
+        ELSE
+          ERR "Invalid hexa value"
+        ENDI
+      ENDI
+ENDM
+
+;; ======================================================================== ;;
+;;  End of File:  tracker.mac                                               ;;
+;; ======================================================================== ;;
